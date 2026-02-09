@@ -1,207 +1,224 @@
 import { useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useInView } from 'framer-motion';
 import * as Matter from 'matter-js';
 
-const SKILLS = ['Golang', 'Kubernetes', 'Docker', 'React', 'Linux', 'gRPC', 'Postgres'];
+const SKILLS = ['Golang', 'Kubernetes', 'Docker', 'React', 'TypeScript', 'Linux', 'Python', 'Javascript', 'Git', 'Github', 'C++'];
 
 interface SkillBody extends Matter.Body {
-  label?: string;
+  label: string;
+  width?: number;
+  height?: number;
 }
 
 export default function PhysicsSkills() {
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<Matter.Engine | null>(null);
-  const bodiesRef = useRef<SkillBody[]>([]);
-  const mouseConstraintRef = useRef<Matter.MouseConstraint | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
+  const runnerRef = useRef<Matter.Runner | null>(null);
+  const isInView = useInView(containerRef, { amount: 0.3 });
+
+  // Track if we have already initialized for the current view session
+  const initializedRef = useRef(false);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || !containerRef.current) return;
 
     const canvas = canvasRef.current;
-    const containerWidth = canvas.parentElement?.offsetWidth || 800;
-    const containerHeight = window.innerWidth < 768 ? 350 : 500;
+    const containerWidth = containerRef.current.offsetWidth;
+    const containerHeight = window.innerWidth < 768 ? 400 : 600;
 
     canvas.width = containerWidth;
     canvas.height = containerHeight;
 
     const Engine = Matter.Engine;
+    // Render not used
     const World = Matter.World;
     const Bodies = Matter.Bodies;
-    const Events = Matter.Events;
+    const Runner = Matter.Runner;
     const MouseConstraint = Matter.MouseConstraint;
     const Mouse = Matter.Mouse;
+    const Composite = Matter.Composite;
 
+    // Create engine
     const engine = Engine.create();
+    engine.world.gravity.y = 1;
     engineRef.current = engine;
 
-    engine.world.gravity.y = 1;
+    // Create runner
+    const runner = Runner.create();
+    runnerRef.current = runner;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const wallThickness = 50;
-
-    const walls = [
-      Bodies.rectangle(containerWidth / 2, containerHeight + wallThickness / 2, containerWidth + 100, wallThickness, { isStatic: true, friction: 0.5 }),
-      Bodies.rectangle(-wallThickness / 2, containerHeight / 2, wallThickness, containerHeight, { isStatic: true, friction: 0.5 }),
-      Bodies.rectangle(containerWidth + wallThickness / 2, containerHeight / 2, wallThickness, containerHeight, { isStatic: true, friction: 0.5 }),
-    ];
-
-    bodiesRef.current = [];
-
-    const skillBodies: SkillBody[] = SKILLS.map((skill, index) => {
-      const isMobile = window.innerWidth < 768;
-      const blockWidth = isMobile ? 80 : 100;
-      const blockHeight = isMobile ? 50 : 60;
-
-      const x = (index + 0.5) * (containerWidth / SKILLS.length) + Math.random() * 20 - 10;
-      const y = 60 + Math.random() * 40;
-
-      const body = Bodies.rectangle(x, y, blockWidth, blockHeight, {
-        restitution: 0.9,
-        density: 0.04,
-        friction: 0.5,
-        frictionAir: 0.02,
-        chamfer: { radius: 8 },
-      }) as SkillBody;
-
-      body.label = skill;
-      return body;
+    // Walls
+    const wallThickness = 60;
+    const ground = Bodies.rectangle(containerWidth / 2, containerHeight + wallThickness / 2 - 10, containerWidth + 200, wallThickness, {
+      isStatic: true,
+      render: { visible: false }
+    });
+    const leftWall = Bodies.rectangle(-wallThickness / 2, containerHeight / 2, wallThickness, containerHeight * 2, {
+      isStatic: true,
+      render: { visible: false }
+    });
+    const rightWall = Bodies.rectangle(containerWidth + wallThickness / 2, containerHeight / 2, wallThickness, containerHeight * 2, {
+      isStatic: true,
+      render: { visible: false }
     });
 
-    bodiesRef.current = [...walls, ...skillBodies];
+    World.add(engine.world, [ground, leftWall, rightWall]);
 
-    World.add(engine.world, bodiesRef.current);
-
+    // Mouse Interaction
     const mouse = Mouse.create(canvas);
     const mouseConstraint = MouseConstraint.create(engine, {
       mouse: mouse,
       constraint: {
         stiffness: 0.2,
-        render: { isVisible: false },
-      },
-    }) as Matter.MouseConstraint;
+        render: {
+          visible: false
+        }
+      }
+    });
 
-    mouseConstraintRef.current = mouseConstraint;
+    // Remove mouse wheel scroll capture
+    mouse.element.removeEventListener("mousewheel", mouse.mousewheel);
+    mouse.element.removeEventListener("DOMMouseScroll", mouse.mousewheel);
+
     World.add(engine.world, mouseConstraint);
 
-    const render = () => {
-      ctx.fillStyle = '#09090b';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Custom Render Loop
+    const ctx = canvas.getContext('2d');
+    let animationFrameId: number;
 
-      ctx.lineWidth = 2;
+    const renderLoop = () => {
+      if (!ctx || !engineRef.current) return;
 
-      skillBodies.forEach((body) => {
-        const vertices = body.vertices;
+      const bodies = Composite.allBodies(engineRef.current.world);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw bodies
+      bodies.forEach((body) => {
+        if (body.render.visible === false) return; // Skip walls
+
+        const skillBody = body as SkillBody;
+        const { x, y } = body.position;
         const angle = body.angle;
 
         ctx.save();
-        ctx.translate(body.position.x, body.position.y);
+        ctx.translate(x, y);
         ctx.rotate(angle);
 
-        ctx.fillStyle = '#18181b';
-        ctx.strokeStyle = '#3f3f46';
+        // Draw Block
+        const width = skillBody.width || 100; // Fallback
+        const height = skillBody.height || 60; // Fallback
 
         ctx.beginPath();
-        ctx.moveTo(vertices[0].x - body.position.x, vertices[0].y - body.position.y);
-        for (let i = 1; i < vertices.length; i++) {
-          ctx.lineTo(vertices[i].x - body.position.x, vertices[i].y - body.position.y);
+        // Draw rounded rectangle manually or use the vertices
+        // Using vertices ensures accurate representation of physics body
+        if (body.vertices && body.vertices.length > 0) {
+          ctx.moveTo(body.vertices[0].x - x, body.vertices[0].y - y);
+          for (let j = 1; j < body.vertices.length; j++) {
+            ctx.lineTo(body.vertices[j].x - x, body.vertices[j].y - y);
+          }
+          ctx.closePath();
+        } else {
+          ctx.rect(-width / 2, -height / 2, width, height);
         }
-        ctx.closePath();
+
+        const isHovered = Matter.Query.point([body], mouse.position).length > 0;
+
+        ctx.fillStyle = isHovered ? '#27272a' : '#18181b'; // zinc-800 : zinc-900
+        ctx.strokeStyle = '#3f3f46'; // zinc-700
+        ctx.lineWidth = 1;
         ctx.fill();
         ctx.stroke();
 
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '14px system-ui';
+        // Draw Text
+        // We cancel rotation for text to keep it upright if desired, 
+        // BUT user asked for "names of skills on the block ar always top up".
+        // If we lock rotation of the body (inertia: Infinity), the body won't rotate, so text follows naturally.
+        ctx.fillStyle = '#f4f4f5'; // zinc-100
+        ctx.font = 'bold 14px "Inter", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(body.label || '', 0, 0);
+        ctx.fillText(skillBody.label || '', 0, 0);
 
         ctx.restore();
       });
 
-      Engine.update(engine);
-      animationFrameRef.current = requestAnimationFrame(render);
+      Runner.tick(runner, engine, 1000 / 60);
+      animationFrameId = requestAnimationFrame(renderLoop);
     };
 
-    animationFrameRef.current = requestAnimationFrame(render);
-
-    const handleResize = () => {
-      const newWidth = canvas.parentElement?.offsetWidth || 800;
-      const newHeight = window.innerWidth < 768 ? 350 : 500;
-
-      if (newWidth !== canvas.width || newHeight !== canvas.height) {
-        canvas.width = newWidth;
-        canvas.height = newHeight;
-
-        bodiesRef.current.forEach((body) => {
-          World.remove(engine.world, body);
-        });
-
-        const newWalls = [
-          Bodies.rectangle(newWidth / 2, newHeight + wallThickness / 2, newWidth + 100, wallThickness, { isStatic: true, friction: 0.5 }),
-          Bodies.rectangle(-wallThickness / 2, newHeight / 2, wallThickness, newHeight, { isStatic: true, friction: 0.5 }),
-          Bodies.rectangle(newWidth + wallThickness / 2, newHeight / 2, wallThickness, newHeight, { isStatic: true, friction: 0.5 }),
-        ];
-
-        const newSkillBodies: SkillBody[] = SKILLS.map((skill, index) => {
-          const isMobile = window.innerWidth < 768;
-          const blockWidth = isMobile ? 80 : 100;
-          const blockHeight = isMobile ? 50 : 60;
-
-          const x = (index + 0.5) * (newWidth / SKILLS.length) + Math.random() * 20 - 10;
-          const y = 60 + Math.random() * 40;
-
-          const body = Bodies.rectangle(x, y, blockWidth, blockHeight, {
-            restitution: 0.9,
-            density: 0.04,
-            friction: 0.5,
-            frictionAir: 0.02,
-            chamfer: { radius: 8 },
-          }) as SkillBody;
-
-          body.label = skill;
-          return body;
-        });
-
-        bodiesRef.current = [...newWalls, ...newSkillBodies];
-        World.add(engine.world, bodiesRef.current);
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
+    renderLoop();
 
     return () => {
-      window.removeEventListener('resize', handleResize);
-
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-
-      if (engineRef.current) {
-        bodiesRef.current.forEach((body) => {
-          World.remove(engineRef.current!.world, body);
-        });
-
-        if (mouseConstraintRef.current) {
-          World.remove(engineRef.current.world, mouseConstraintRef.current);
-        }
-
-        Events.off(engineRef.current);
-      }
+      cancelAnimationFrame(animationFrameId);
+      Runner.stop(runner);
+      Engine.clear(engine);
     };
   }, []);
 
+  // Handle Reset and Staggered Spawn
+  useEffect(() => {
+    if (!isInView || !engineRef.current) {
+      initializedRef.current = false;
+      return;
+    };
+
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
+    const engine = engineRef.current;
+
+    // Clear existing dynamic bodies (skills) but keep walls
+    const allBodies = Matter.Composite.allBodies(engine.world);
+    // Filter by static to keep walls
+    const dynamicBodies = allBodies.filter(b => !b.isStatic && b.label !== 'Mouse Constraint');
+    Matter.World.remove(engine.world, dynamicBodies);
+
+    // Spawn Logic
+    const containerWidth = canvasRef.current?.width || 800;
+
+    SKILLS.forEach((skill, index) => {
+      setTimeout(() => {
+        if (!engineRef.current) return;
+
+        const isMobile = window.innerWidth < 768;
+        const width = isMobile ? 90 : 120;
+        const height = isMobile ? 45 : 50;
+
+        // Random x within center area to ensure stacking
+        // center is containerWidth / 2
+        // Spawn range: center +/- 20px
+        const x = containerWidth / 2 + (Math.random() - 0.5) * 40;
+        const y = -100; // Start above screen
+
+        const body = Matter.Bodies.rectangle(x, y, width, height, {
+          label: skill,
+          chamfer: { radius: 10 },
+          restitution: 0.2, // Low bounciness for stacking
+          friction: 0.5,
+          density: 0.002, // Lighter density
+          inertia: Infinity, // PREVENT ROTATION
+          frictionAir: 0.05 // Air resistance to slow down fall slightly
+        }) as SkillBody;
+
+        body.width = width;
+        body.height = height;
+
+        Matter.World.add(engine.world, body);
+      }, index * 200); // 200ms stagger
+    });
+
+  }, [isInView]);
+
   return (
-    <section className="bg-zinc-950 py-20 px-6">
+    <section ref={containerRef} id="tech-stack" className="bg-zinc-950 py-24 px-6 overflow-hidden">
       <div className="max-w-6xl mx-auto">
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          viewport={{ once: true }}
-          className="text-2xl font-bold text-zinc-100 mb-8 text-center"
+          className="text-3xl font-bold text-zinc-100 mb-12 text-center"
         >
           Tech Stack
         </motion.h2>
@@ -209,19 +226,11 @@ export default function PhysicsSkills() {
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-          viewport={{ once: true }}
-          className="rounded-lg overflow-hidden bg-zinc-900"
+          transition={{ duration: 0.8 }}
+          className="relative w-full rounded-xl overflow-hidden bg-zinc-900/30 border border-white/5"
         >
-          <canvas
-            ref={canvasRef}
-            className="w-full block cursor-grab active:cursor-grabbing"
-          />
+          <canvas ref={canvasRef} className="w-full h-full block cursor-grab active:cursor-grabbing" />
         </motion.div>
-
-        <p className="text-center text-sm text-zinc-500 mt-4">
-          Click and drag the skill blocks to interact with the physics sandbox
-        </p>
       </div>
     </section>
   );

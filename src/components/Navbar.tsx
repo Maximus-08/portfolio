@@ -16,10 +16,18 @@ export default function Navbar() {
           <a href="#work" className="text-zinc-400 hover:text-zinc-100 transition-colors text-sm">
             Work
           </a>
+          <a href="#tech-stack" className="text-zinc-400 hover:text-zinc-100 transition-colors text-sm">
+            Tech Stack
+          </a>
           <a href="#about" className="text-zinc-400 hover:text-zinc-100 transition-colors text-sm">
             About
           </a>
-          <a href="#resume" className="text-zinc-400 hover:text-zinc-100 transition-colors text-sm">
+          <a
+            href="/Resume.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-zinc-400 hover:text-zinc-100 transition-colors text-sm"
+          >
             Resume
           </a>
         </div>

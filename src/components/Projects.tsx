@@ -3,19 +3,22 @@ import { ExternalLink } from 'lucide-react';
 
 const projects = [
   {
-    title: 'AtomicTracker',
-    description: 'Habit tracking app built with React & Go. Features real-time analytics and cloud synchronization.',
-    tags: ['React', 'Go', 'TypeScript'],
+    title: 'Goops Monitor',
+    description: 'Real-time distributed health monitor tracking service status, latency, and uptime. Implements parallel non-blocking health checks and automated remediation.',
+    tags: ['Golang', 'Concurrency', 'Distributed Systems'],
+    link: 'https://github.com/Maximus-08/Goops_Monitor',
   },
   {
-    title: 'LitmusChaos',
-    description: 'Open Source CI/CD chaos engineering platform. CNCF community project for Kubernetes testing.',
-    tags: ['Kubernetes', 'Go', 'Open Source'],
+    title: 'Assignment Solver',
+    description: 'AI-powered automation workflow fetching assignments from Google Classroom and generating structured solutions using LLMs.',
+    tags: ['Generative AI', 'LLMs', 'Google APIs', 'Automation'],
+    link: 'https://github.com/Maximus-08/Assignment-Solver',
   },
   {
-    title: 'Market Algo',
-    description: 'Financial modeling system using algorithmic trading strategies and machine learning predictions.',
-    tags: ['Python', 'FinTech', 'Data Science'],
+    title: 'Ghost IDE',
+    description: 'Browser-based IDE with Remote Code Execution (RCE) engine using Docker containers and WebSocket-based real-time compilation streaming.',
+    tags: ['React.js', 'Node.js', 'Docker', 'WebSockets'],
+    link: 'https://github.com/Maximus-08/Ghost_IDE',
   },
 ];
 
@@ -61,11 +64,14 @@ export default function Projects() {
           className="grid grid-cols-1 md:grid-cols-2 gap-6"
         >
           {projects.map((project) => (
-            <motion.div
+            <motion.a
               key={project.title}
+              href={project.link}
+              target="_blank"
+              rel="noopener noreferrer"
               variants={itemVariants}
               whileHover={{ y: -4 }}
-              className="group p-6 rounded-lg bg-white/5 border border-white/10 backdrop-blur-sm hover:border-white/20 hover:bg-white/10 transition-all duration-300 cursor-pointer"
+              className="group p-6 rounded-lg bg-white/5 border border-white/10 backdrop-blur-sm hover:border-white/20 hover:bg-white/10 transition-all duration-300 cursor-pointer block"
             >
               <div className="flex items-start justify-between mb-4">
                 <h3 className="text-lg font-semibold text-zinc-100">
@@ -88,7 +94,7 @@ export default function Projects() {
                   </span>
                 ))}
               </div>
-            </motion.div>
+            </motion.a>
           ))}
         </motion.div>
       </div>

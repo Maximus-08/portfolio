@@ -62,7 +62,7 @@ export default function Hero() {
             View Work
           </a>
           <a
-            href="mailto:avnishjaltare@gmail.com"
+            href="#contact"
             className="px-6 py-3 border border-zinc-600 text-zinc-100 font-medium rounded hover:bg-white/5 transition-colors"
           >
             Contact
